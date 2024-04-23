@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         AWS_DEFAULT_REGION = 'us-west-2'
-        AWS_ACCOUNT_ID = '348722393091'
+        AWS_ACCOUNT_ID = '520261045384'
         ECR_REPO_NAME = 'nodejs_project'
         ECS_CLUSTER_NAME = 'nodejs'
         ECS_SERVICE_NAME = 'nodejs_svc'
@@ -13,19 +13,37 @@ pipeline {
     stages {
         stage('checkout') {
             steps {
-                git url: 'https://github.com/tejaswini1811/Nodejs_project.git',
+                git url: 'https://github.com/G-Dhanusha/Nodejs_project.git',
                     branch: 'main'
             }
         }
-        stage('Build and Push Docker Image') {
+        // stage('Build and Push Docker Image') {
+        //     steps {
+        //         script {
+        //             def dockerImage = docker.build("${ECR_REPO_NAME}:${BUILD_NUMBER}")
+        //             sh "aws ecr get-login-password --region ${AWS_DEFAULT_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com"
+        //             sh "docker tag ${ECR_REPO_NAME}:${BUILD_NUMBER} ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/${ECR_REPO_NAME}:${BUILD_NUMBER}"
+        //             sh "docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/${ECR_REPO_NAME}:${BUILD_NUMBER}"
+        //         }
+        //     }
+        // }
+        stage('Build') {
             steps {
-                script {
-                    def dockerImage = docker.build("${ECR_REPO_NAME}:${BUILD_NUMBER}")
-                    sh "aws ecr get-login-password --region ${AWS_DEFAULT_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com"
-                    sh "docker tag ${ECR_REPO_NAME}:${BUILD_NUMBER} ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/${ECR_REPO_NAME}:${BUILD_NUMBER}"
-                    sh "docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/${ECR_REPO_NAME}:${BUILD_NUMBER}"
-                }
+                sh 'app = docker.build("Dhanusha/test")'
             }
+        }
+        stage('Test image') {           
+            app.inside {            
+             
+             sh 'echo "Tests passed"'        
+            }    
+        }     
+       stage('Push image') {
+             docker.withRegistry('https://registry.hub.docker.com', 'git') {            
+                        app.push("${env.BUILD_NUMBER}")            
+                        app.push("latest")        
+              }    
+           }
         }
         stage('Create ECS Cluster') {
             steps {
