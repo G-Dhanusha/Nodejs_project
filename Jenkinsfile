@@ -11,7 +11,7 @@ pipeline {
         IMAGE_TAG="${env.BUILD_ID}"
         //Do not edit REPOSITORY_URI.
         REPOSITORY_URI = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/${IMAGE_REPO_NAME}"
-	    registryCredential = "aws"
+	    registryCredential = "aws_credentials"
         SUBNETS = "[subnet-062813342cba59761,subnet-025c57b2325a376f0]"
         SECURITYGROUPS = "[	sg-06e2e7509ad6231d7]"
     
@@ -121,4 +121,4 @@ pipeline {
 //        sh 'docker system prune -a -f'
 //      }
 //    }
-//  }
+ }
