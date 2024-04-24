@@ -49,7 +49,7 @@ pipeline {
         // Cluster creation
         stage('Create ECS Cluster') {
             steps {
-                sh "aws ecs run-task --cluster ${CLUSTER_NAME} --task-definition ${TASK_DEFINITION_NAME} --region ${AWS_DEFAULT_REGION} --launch-type FARGATE --count ${DESIRED_COUNT} --network-configuration awsvpcConfiguration={subnets=${SUBNETS},securityGroups=${SECURITYGROUPS},assignPublicIp=ENABLED} "
+                sh "aws ecs create-cluster --cluster-name ${CLUSTER_NAME} --region ${AWS_DEFAULT_REGION}"
             }
         }
         // Creating the Task Definition
@@ -113,8 +113,9 @@ pipeline {
         // Run the task
         stage('Run Task in ECS') {
             steps {
-                sh "aws ecs run-task --cluster nodejs_test --task-definition nodejs_task --region us-east-2 --launch-type FARGATE --count 1 --network-configuration awsvpcConfiguration={subnets=[subnet-062813342cba59761],securityGroups=[sg-06e2e7509ad6231d7],assignPublicIp=ENABLED}"
+                sh "aws ecs run-task --cluster ${CLUSTER_NAME} --task-definition ${TASK_DEFINITION_NAME} --region ${AWS_DEFAULT_REGION} --launch-type FARGATE --count ${DESIRED_COUNT} --network-configuration awsvpcConfiguration={subnets=${SUBNETS},securityGroups=${SECURITYGROUPS},assignPublicIp=ENABLED} "
             }
+        
         }
     }
         // Clear local image registry. Note that all the data that was used to build the image is being cleared.
