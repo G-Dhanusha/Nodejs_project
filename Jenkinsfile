@@ -114,7 +114,7 @@ pipeline {
         stage('Run Task in ECS') {
              steps {
                 sh'''
-                aws ecs run-task --cluster ${CLUSTER_NAME}-cluster \
+                aws ecs run-task --cluster ${CLUSTER_NAME} \
                  --task-definition ${TASK_DEFINITION_NAME} \
                  --launch-type="FARGATE" \
                  --network-configuration '{ "awsvpcConfiguration": { "assignPublicIp":"ENABLED", "securityGroups": ["sg-04d448288ad384ad1"], "subnets": ["subnet-0a2b1d7a381e7833e"]}}' \
