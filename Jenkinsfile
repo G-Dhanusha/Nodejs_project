@@ -45,7 +45,7 @@ pipeline {
                     }
                 }
             }
-        }
+        
         // Cluster creation
         stage('Create ECS Cluster') {
             steps {
@@ -124,4 +124,4 @@ pipeline {
        sh 'docker system prune -a -f'
      }
    }
- }
+}
