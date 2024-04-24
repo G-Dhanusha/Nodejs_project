@@ -12,8 +12,8 @@ pipeline {
         //Do not edit REPOSITORY_URI.
         REPOSITORY_URI = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/${IMAGE_REPO_NAME}"
 	    registryCredential = "aws_credentials"
-        SUBNETS = "[subnet-062813342cba59761,subnet-025c57b2325a376f0]"
-        SECURITYGROUPS = "[sg-06e2e7509ad6231d7]"
+        SUBNETS = "[subnet-0a2b1d7a381e7833e]"
+        SECURITYGROUPS = "[sg-04d448288ad384ad1]"
     
     }
    
@@ -49,7 +49,7 @@ pipeline {
         // Cluster creation
         stage('Create ECS Cluster') {
             steps {
-                sh "aws ecs create-cluster --cluster-name ${CLUSTER_NAME} --region ${AWS_DEFAULT_REGION}"
+                sh "aws ecs run-task --cluster ${CLUSTER_NAME} --task-definition ${TASK_DEFINITION_NAME} --region ${AWS_DEFAULT_REGION} --launch-type FARGATE --count ${DESIRED_COUNT} --network-configuration awsvpcConfiguration={subnets=${SUBNETS},securityGroups=${SECURITYGROUPS},assignPublicIp=ENABLED} "
             }
         }
         // Creating the Task Definition
