@@ -3,7 +3,7 @@ pipeline {
     environment {
         AWS_ACCOUNT_ID="520261045384"
         AWS_DEFAULT_REGION="us-east-2"
-	    CLUSTER_NAME="  "
+	    CLUSTER_NAME="nodejs_test"
 	    TASK_DEFINITION_NAME="nodejs_task"
 	    DESIRED_COUNT="1"
         IMAGE_REPO_NAME="nodejs_project_1"
