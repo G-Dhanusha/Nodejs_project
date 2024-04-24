@@ -3,7 +3,7 @@ pipeline {
     environment {
         AWS_ACCOUNT_ID="520261045384"
         AWS_DEFAULT_REGION="us-east-2"
-	    CLUSTER_NAME="nodejs_test"
+	    CLUSTER_NAME="  "
 	    TASK_DEFINITION_NAME="nodejs_task"
 	    DESIRED_COUNT="1"
         IMAGE_REPO_NAME="nodejs_project_1"
@@ -92,8 +92,8 @@ pipeline {
                                 "systemControls": []
                             }
                         ],
-                        "taskRoleArn": "arn:aws:iam::520261045384:role/ECS_Role",
-                        "executionRoleArn": "arn:aws:iam::520261045384:role/ECS_Role",
+                        "taskRoleArn": "arn:aws:iam::520261045384:role/ecsTaskExecutionRole",
+                        "executionRoleArn": "arn:aws:iam::520261045384:role/ecsTaskExecutionRole",
                         "networkMode": "awsvpc",
                         "requiresCompatibilities": [
                             "FARGATE"
@@ -113,7 +113,7 @@ pipeline {
         // Run the task
         stage('Run Task in ECS') {
             steps {
-                sh "aws ecs run-task --cluster ${CLUSTER_NAME} --task-definition ${TASK_DEFINITION_NAME} --region ${AWS_DEFAULT_REGION} --launch-type FARGATE --count ${DESIRED_COUNT} --network-configuration awsvpcConfiguration={subnets=[${SUBNETS}],securityGroups=[${SECURITY_GROUP}],assignPublicIp=ENABLED}"  
+                sh "aws ecs run-task --cluster ${CLUSTER_NAME} --task-definition ${TASK_DEFINITION_NAME} --region ${AWS_DEFAULT_REGION} --launch-type FARGATE --count ${DESIRED_COUNT} --network-configuration awsvpcConfiguration={subnets=[${SUBNETS}],securityGroups=[${SECURITY_GROUP}],assignPublicIp=ENABLED} --launch-type FARGATE --count 1"  
             }
         
         }
