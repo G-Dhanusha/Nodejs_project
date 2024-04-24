@@ -13,7 +13,7 @@ pipeline {
         REPOSITORY_URI = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/${IMAGE_REPO_NAME}"
 	    registryCredential = "aws_credentials"
         SUBNETS = "[subnet-0a2b1d7a381e7833e]"
-        SECURITYGROUPS = "[sg-04d448288ad384ad1]"
+        SECURITYGROUP = "[sg-04d448288ad384ad1]"
     
     }
    
@@ -113,7 +113,13 @@ pipeline {
         // Run the task
         stage('Run Task in ECS') {
              steps {
-                sh "aws ecs run-task --cluster ${CLUSTER_NAME} --task-definition ${TASK_DEFINITION_NAME} --region ${AWS_DEFAULT_REGION} --launch-type FARGATE --count ${DESIRED_COUNT} --network-configuration 'awsvpcConfiguration={subnets=[${SUBNETS}],securityGroups=[${SECURITYGROUPS}],assignPublicIp=ENABLED}'"
+                sh'''
+                aws ecs run-task --cluster ${CLUSTER_NAME}-cluster \
+                 --task-definition ${TASK_DEFINITION_NAME} \
+                 --launch-type="FARGATE" \
+                 --network-configuration '{ "awsvpcConfiguration": { "assignPublicIp":"ENABLED", "securityGroups": ["sg-04d448288ad384ad1"], "subnets": ["subnet-0a2b1d7a381e7833e"]}}' \
+                 --count 1
+                 '''     
             }
         
         }
