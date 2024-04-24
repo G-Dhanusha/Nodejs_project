@@ -116,9 +116,9 @@ pipeline {
     }
         // Clear local image registry. Note that all the data that was used to build the image is being cleared.
         // For different use cases, one may not want to clear all this data so it doesn't have to be pulled again for each build.
-   post {
-       always {
-       sh 'docker system prune -a -f'
-     }
-   }
- }
+//    post {
+//        always {
+//        sh 'docker system prune -a -f'
+//      }
+//    }
+//  }
