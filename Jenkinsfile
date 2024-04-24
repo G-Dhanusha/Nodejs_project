@@ -37,8 +37,11 @@ pipeline {
         stage('Releasing') {
             steps{  
                 script {
-                    docker.withRegistry("https://" + REPOSITORY_URI, "ecr:${AWS_DEFAULT_REGION}:" + registryCredential) {
-                                dockerImage.push()
+                    // docker.withRegistry("https://" + REPOSITORY_URI, "ecr:${AWS_DEFAULT_REGION}:" + registryCredential) {
+                    //             dockerImage.push()
+                    sh'aws ecr get-login-password --region us-east-2 | docker login --username AWS --password-stdin 520261045384.dkr.ecr.us-east-2.amazonaws.com'
+                    sh"docker tag ${IMAGE_REPO_NAME}:${IMAGE_TAG} 520261045384.dkr.ecr.us-east-2.amazonaws.com/${IMAGE_REPO_NAME}:${IMAGE_TAG}"
+                    sh"docker push 520261045384.dkr.ecr.us-east-2.amazonaws.com/${IMAGE_REPO_NAME}:${IMAGE_TAG}"
                     }
                 }
             }
