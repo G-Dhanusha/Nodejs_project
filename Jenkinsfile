@@ -1,8 +1,8 @@
 pipeline {
     agent any
     environment {
-        AWS_ACCOUNT_ID="348722393091"
-        AWS_DEFAULT_REGION="us-west-2"
+        AWS_ACCOUNT_ID="520261045384"
+        AWS_DEFAULT_REGION="us-east-2"
 	    CLUSTER_NAME="nodejs_test"
 	    TASK_DEFINITION_NAME="nodejs_task"
 	    DESIRED_COUNT="1"
@@ -12,16 +12,16 @@ pipeline {
         //Do not edit REPOSITORY_URI.
         REPOSITORY_URI = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/${IMAGE_REPO_NAME}"
 	    registryCredential = "aws"
-        SUBNETS = "[subnet-0581fca58af676215,subnet-0fdb63e26e3f22cf1]"
-        SECURITYGROUPS = "[sg-0e2de29ec3748f13b]"
+        SUBNETS = "[subnet-062813342cba59761,subnet-025c57b2325a376f0]"
+        SECURITYGROUPS = "[	sg-06e2e7509ad6231d7]"
     
     }
    
     stages {
         stage('checkout') {
             steps {
-                git url: 'https://github.com/tejaswini1811/Nodejs_project.git',
-                    branch: 'test'
+                git url: 'https://github.com/G-Dhanusha/Nodejs_project.git',
+                    branch: 'main'
             }
         }
 
