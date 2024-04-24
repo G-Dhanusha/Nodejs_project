@@ -89,8 +89,8 @@ pipeline {
                                 "systemControls": []
                             }
                         ],
-                        "taskRoleArn": "arn:aws:iam::348722393091:role/ecsTaskExecutionRole",
-                        "executionRoleArn": "arn:aws:iam::348722393091:role/ecsTaskExecutionRole",
+                        "taskRoleArn": "arn:aws:iam::520261045384:role/ECS_Role",
+                        "executionRoleArn": "arn:aws:iam::520261045384:role/ECS_Role",
                         "networkMode": "awsvpc",
                         "requiresCompatibilities": [
                             "FARGATE"
