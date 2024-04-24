@@ -6,7 +6,7 @@ pipeline {
 	    CLUSTER_NAME="nodejs_test"
 	    TASK_DEFINITION_NAME="nodejs_task"
 	    DESIRED_COUNT="1"
-        IMAGE_REPO_NAME="nodejs_project"
+        IMAGE_REPO_NAME="nodejs_project_1"
         //Do not edit the variable IMAGE_TAG. It uses the Jenkins job build ID as a tag for the new image.
         IMAGE_TAG="${env.BUILD_ID}"
         //Do not edit REPOSITORY_URI.
