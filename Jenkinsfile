@@ -1,22 +1,21 @@
 pipeline {
     agent any
     environment {
-        AWS_ACCOUNT_ID="520261045384"
-        AWS_DEFAULT_REGION="us-west-2"
-        CLUSTER_NAME="nodejs1"
+        AWS_ACCOUNT_ID="533267223585"
+        AWS_DEFAULT_REGION="us-west-1"
+        CLUSTER_NAME="nodejs_test"
+        TASK_DEFINITION_NAME="nodejs_task"
         DESIRED_COUNT="1"
         IMAGE_REPO_NAME="nodejs_project"
-        TASK_DEFINITION_NAME="nj_td"
         //Do not edit the variable IMAGE_TAG. It uses the Jenkins job build ID as a tag for the new image.
         IMAGE_TAG="${env.BUILD_ID}"
         //Do not edit REPOSITORY_URI.
         REPOSITORY_URI = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/${IMAGE_REPO_NAME}"
-        SUBNETS = "[subnet-0a2b1d7a381e7833e]"
-        SECURITYGROUPS = "[sg-06e2e7509ad6231d7]"
+        registryCredential = "aws"
         SERVICE_NAME = "nodejs-svc"
-        VPC_ID ="vpc-07ee561ec3aba1ec7"
-        // For Auto Scaling groups
-        ASG_NAME = "test-asg"
+        VPC_ID ="vpc-02a0aad6b2049d61f"
+        SUBNETS = "subnet-0f2229e52f410cfce,subnet-02bd443789219bf11"
+        SECURITYGROUPS = "sg-06db6a49e9854060a"
         MIN_CAPACITY = "1"
         MAX_CAPACITY = "2"
         lbArn = ""
@@ -28,7 +27,7 @@ pipeline {
         stage('checkout') {
             steps {
                 git url: 'https://github.com/G-Dhanusha/Nodejs_project.git',
-                    branch: 'dev'
+                    branch: 'main'
             }
         }
  
@@ -36,7 +35,7 @@ pipeline {
         stage('Building image') {
             steps{
                 script {
-                    dockerImage = docker.build ("${IMAGE_REPO_NAME}:${IMAGE_TAG}")
+                    dockerImage = docker.build "${IMAGE_REPO_NAME}:${IMAGE_TAG}"
                 }
             }
         }
@@ -44,21 +43,22 @@ pipeline {
         stage('Releasing') {
             steps{  
                 script {
-                    sh "aws ecr get-login-password --region ${AWS_DEFAULT_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com"
-                    sh "docker tag ${IMAGE_REPO_NAME}:${IMAGE_TAG} ${REPOSITORY_URI}:${IMAGE_TAG}"
-                    sh "docker push ${REPOSITORY_URI}:${IMAGE_TAG}"
+                    docker.withRegistry("https://" + REPOSITORY_URI, "ecr:${AWS_DEFAULT_REGION}:" + registryCredential) {
+                                dockerImage.push()
                     }
                 }
             }
-        // Creating an Application Load Balancer
+        }
+       
         stage('Create Load Balancer') {
             steps {
                 script {
+                    // Creating an Application Load Balancer
                     def lbOutput = sh(script: """
                         aws elbv2 create-load-balancer \
                             --name Nodejs-lb \
-                            --subnets subnet-0a2b1d7a381e7833e \
-                            --security-groups sg-06e2e7509ad6231d7 \
+                            --subnets subnet-0f2229e52f410cfce subnet-02bd443789219bf11 \
+                            --security-groups ${SECURITYGROUPS} \
                             --type application \
                             --ip-address-type ipv4 \
                             --scheme internet-facing \
@@ -74,13 +74,14 @@ pipeline {
                 }
             }
         }
-        // Creating a target group
+ 
         stage('Create targetgroup') {
             steps {
                 script {
+                    // Creating a target group
                     def tgOutput = sh(script: """
                         aws elbv2 create-target-group \
-                            --name asg-apptg \
+                            --name app-tg \
                             --protocol HTTP \
                             --port 80 \
                             --vpc-id ${VPC_ID} \
@@ -100,18 +101,22 @@ pipeline {
                 }
             }
         }
-       
-        // Creating a listener
+ 
         stage('Create listener') {
             steps {
                 script {
+                    // Creating a listener
                     sh """
-                        aws elbv2 create-listener --load-balancer-arn ${lbArn} --protocol HTTP --port 80 --default-actions Type=forward,TargetGroupArn=${tgArn} --region ${AWS_DEFAULT_REGION}
+                        aws elbv2 create-listener \
+                        --load-balancer-arn ${lbArn} \
+                        --protocol HTTP \
+                        --port 80 \
+                        --default-actions Type=forward,TargetGroupArn=${tgArn} \
+                        --region ${AWS_DEFAULT_REGION}
                     """
                 }
             }
         }
-       
         // Creating autoscaling group
         stage('Creating autoscaling group') {
             steps {
@@ -122,141 +127,176 @@ pipeline {
  
                     if (asgExists.toInteger() == 0) {
                         // ASG doesn't exist, so create it
+                        echo "Creating Auto Scaling Group..."
                         def sgOutput = sh(script: """
                             aws autoscaling create-auto-scaling-group \
                                 --auto-scaling-group-name ${ASG_NAME} \
-                                --launch-template Version=1,LaunchTemplateId=lt-05f22abfcfbedacb3 \
+                                --launch-template Version=1,LaunchTemplateId=lt-0fac26265b0845152 \
                                 --health-check-type EC2 \
                                 --health-check-grace-period 300 \
                                 --desired-capacity ${DESIRED_COUNT} \
                                 --min-size ${MIN_CAPACITY} \
                                 --max-size ${MAX_CAPACITY} \
-                                --vpc-zone-identifier "${SUBNETS}"
+                                --vpc-zone-identifier "subnet-0f2229e52f410cfce,subnet-02bd443789219bf11"
                         """, returnStdout: true).trim()
-                       
+ 
+                        echo "Auto Scaling Group creation output: ${sgOutput}"
+ 
                         // Extract ASG ARN from output
                         asgArn = sh(script: "echo '${sgOutput}' | jq -r '.AutoScalingGroups[0].AutoScalingGroupARN'", returnStdout: true).trim()
-                       
+ 
                         // Print ASG ARN
                         println "Auto Scaling Group ARN: ${asgArn}"
                     } else {
-                        // ASG already exists, so update it
-                        echo "Auto Scaling Group '${ASG_NAME}' already exists. Updating..."
-                        def updateOutput = sh(script: """
-                            aws autoscaling update-auto-scaling-group \
-                                --auto-scaling-group-name ${ASG_NAME} \
-                                --launch-template Version=1,LaunchTemplateId=lt-0ab66584a121e451c \
-                                --desired-capacity ${DESIRED_COUNT} \
-                                --min-size ${MIN_CAPACITY} \
-                                --max-size ${MAX_CAPACITY} \
-                        """, returnStdout: true).trim()
-                       
-                        // Extract ASG ARN from output
-                        asgArn = sh(script: "echo '${updateOutput}' | jq -r '.AutoScalingGroups[0].AutoScalingGroupARN'", returnStdout: true).trim()
-                       
-                        // Print ASG ARN
+                        // ASG already exists
+                        echo "Auto Scaling Group '${ASG_NAME}' already exists. Skipping creation..."
+                        def asgPresent = sh(script: """
+                            aws autoscaling describe-auto-scaling-groups --auto-scaling-group-names ${ASG_NAME} --region ${AWS_DEFAULT_REGION} --query "AutoScalingGroups[0].AutoScalingGroupARN" --output text
+                            """, returnStdout: true).trim()
+                        asgArn = asgPresent
                         println "Auto Scaling Group ARN: ${asgArn}"
                     }
                 }
             }
         }
- 
+        // Create Capacity Provider
         stage('Create Capacity Provider') {
+            when {
+                expression { asgArn != "" }
+            }
             steps {
                 script {
-                    sh "aws ecs create-capacity-provider --name ecs_asg --auto-scaling-group-provider autoScalingGroupArn=${asgArn}"
+                    // Check if the capacity provider already exists
+                    def capacityProviderExists = sh(script: """
+                        aws ecs describe-capacity-providers --capacity-providers ecs_cp --region ${AWS_DEFAULT_REGION} --query "length(capacityProviders)"
+                    """, returnStdout: true).trim()
+ 
+                    if (capacityProviderExists.toInteger() == 0) {
+                        // Capacity provider doesn't exist, create it
+                        sh "aws ecs create-capacity-provider --name ecs_cp --auto-scaling-group-provider autoScalingGroupArn=${asgArn} --region ${AWS_DEFAULT_REGION}"
+                    } else {
+                        echo "capacity provider already exists"
+                    }
                 }
             }
         }
- 
         // Cluster creation
         stage('Create ECS Cluster') {
             steps {
-                sh "aws ecs create-cluster --cluster-name ${CLUSTER_NAME} --region ${AWS_DEFAULT_REGION} --capacity-providers ecs_asg "
+                sh "aws ecs create-cluster \
+                --cluster-name ${CLUSTER_NAME} \
+                 --capacity-providers ecs_cp \
+                 --default-capacity-provider-strategy capacityProvider=ecs_cp,weight=1 \
+                --region ${AWS_DEFAULT_REGION}"
             }
         }
+        // Creating the Task Definition
         stage('Register Task Definition') {
             steps {
                 script {
                     writeFile file: 'task-definition.json', text: """
                     {
+                        "family": "${TASK_DEFINITION_NAME}",
                         "containerDefinitions": [
                             {
                                 "name": "nodejs_container",
                                 "image": "${REPOSITORY_URI}:${IMAGE_TAG}",
-                                "essential": true,
-                                "cpu": 256,
-                                "memory": 512,
+                                "cpu": 0,
                                 "portMappings": [
                                     {
+                                        "name": "nodejs_port",
                                         "containerPort": 3000,
-                                        "hostPort": 3000
+                                        "hostPort": 3000,
+                                        "protocol": "tcp",
+                                        "appProtocol": "http"
                                     }
-                                ]
+                                ],
+                                "essential": true,
+                                "environment": [],
+                                "environmentFiles": [],
+                                "mountPoints": [],
+                                "volumesFrom": [],
+                                "ulimits": [],
+                                "logConfiguration": {
+                                    "logDriver": "awslogs",
+                                    "options": {
+                                        "awslogs-create-group": "true",
+                                        "awslogs-group": "/ecs/${TASK_DEFINITION_NAME}",
+                                        "awslogs-region": "${AWS_DEFAULT_REGION}",
+                                        "awslogs-stream-prefix": "ecs"
+                                    },
+                                    "secretOptions": []
+                                },
+                                "systemControls": []
                             }
                         ],
-                        "family": "${TASK_DEFINITION_NAME}",
-                        "taskRoleArn": "arn:aws:iam::520261045384:role/ecsTaskExecutionRole",
-                        "executionRoleArn": "arn:aws:iam::520261045384:role/ecsTaskExecutionRole",
-                        "requiresCompatibilities": ["FARGATE"],
+                        "taskRoleArn": "arn:aws:iam::${AWS_ACCOUNT_ID}:role/AmazonEC2@EKS",
+                        "executionRoleArn": "arn:aws:iam::${AWS_ACCOUNT_ID}:role/AmazonEC2@EKS",
                         "networkMode": "awsvpc",
-                        "cpu": "256",
-                        "memory": "512"
+                        "requiresCompatibilities": [
+                            "EC2"
+                        ],
+                        "cpu": "1024",
+                        "memory": "3072",
+                        "runtimePlatform": {
+                            "cpuArchitecture": "X86_64",
+                            "operatingSystemFamily": "LINUX"
+                        }
                     }
                     """
-                    sh "aws ecs register-task-definition --cli-input-json file://task-definition.json --region ${AWS_DEFAULT_REGION} "
-                   
+                    sh "aws ecs register-task-definition --cli-input-json file://task-definition.json --region ${AWS_DEFAULT_REGION}"
                 }
             }
         }
-       
-        stage('Deploy') {
+        stage('Describe and Create ECS Service') {
             steps {
                 script {
-                        int count = sh(script: """
-                            aws ecs describe-services --cluster ${CLUSTER_NAME} --services ${SERVICE_NAME} | jq '.services | length'
-                        """,
-                        returnStdout: true).trim()
- 
-                        echo "service count: $count"
- 
-                        if (count > 0) {
-                            //ECS service exists: update
-                            echo "Updating ECS service $ecs_service..."
-                            sh(script: """
-                                aws ecs update-service \
-                                    --cluster ${CLUSTER_NAME} \
-                                    --service ${SERVICE_NAME} \
-                                    --task-definition ${TASK_DEFINITION_NAME} \
-                            """)
-                        }
-                        else {
-                            //ECS service does not exist: create new
-                            echo "Creating new ECS service $ecs_service..."
-                   
-                            sh(script: """
-                                aws ecs create-service \
-                                    --cluster ${CLUSTER_NAME} \
-                                    --task-definition ${TASK_DEFINITION_NAME} \
-                                    --service-name ${SERVICE_NAME} \
-                                    --desired-count 1 \
-                                    --launch-type EC2 \
-                                    --scheduling-strategy REPLICA \
-                                    --load-balancers "targetGroupArn=${tgArn},containerName=nodejs_container,containerPort=3000" \
-                                    --deployment-configuration "maximumPercent=200,minimumHealthyPercent=100"
-                            """)
-                        }                
-                }  
- 
+                    def serviceDescription = sh(script: "aws ecs describe-services --cluster ${CLUSTER_NAME} --service ${SERVICE_NAME}", returnStdout: true).trim()
+                    if (serviceDescription.contains('does not exist')) {
+                        echo "ECS service does not exist, creating a new one..."
+                        sh """
+                            aws ecs create-service \
+                                --cluster ${CLUSTER_NAME} \
+                                --service-name ${SERVICE_NAME} \
+                                --task-definition ${TASK_DEFINITION_NAME} \
+                                --launch-type EC2 \
+                                --scheduling-strategy REPLICA \
+                                --load-balancers targetGroupArn=${tgArn},containerName="nodejs_container",containerPort=3000 \
+                                --desired-count 1 \
+                                --capacity-providers EC2 ${ASG_NAME}
+                        """
+                    } else {
+                        echo "ECS service already exists, updating capacity providers..."
+                        sh """
+                            aws ecs update-service \
+                                --cluster ${CLUSTER_NAME} \
+                                --service ${SERVICE_NAME} \
+                                --capacity-providers FARGATE ${ASG_NAME}
+                        """
+                    }
+                }
             }
         }
-    }
-       
+    //             sh """
+    //                 aws application-autoscaling register-scalable-target \
+    //                     --service-namespace ecs \
+    //                     --scalable-dimension ecs:service:DesiredCount \
+    //                     --resource-id service/${CLUSTER_NAME}/${SERVICE_NAME}\
+    //                     --min-capacity ${MIN_CAPACITY} \
+    //                     --max-capacity ${MAX_CAPACITY} \
+    //                     --region ${AWS_DEFAULT_REGION}
+    //                 """                
+    //         }
+    //     }
+    // }
+ 
         // Clear local image registry. Note that all the data that was used to build the image is being cleared.
         // For different use cases, one may not want to clear all this data so it doesn't have to be pulled again for each build.
-    post {
-        always {
-        sh 'docker system prune -a -f'
-       }
-    }
+   post {
+       always {
+       sh 'docker system prune -a -f'
+       
+     }
+   }
+ }
 }
